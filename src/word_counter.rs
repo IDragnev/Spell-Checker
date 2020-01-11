@@ -16,7 +16,7 @@ impl WordCounter {
         let mut counter = Self::new();
         for word in input.lines()
             .map(|line| crate::clean_line(line))
-            .flat_map(|line| to_words(line))
+            .flat_map(|line| to_words(&line))
         {
             counter.add(&word);
         }
@@ -56,7 +56,7 @@ impl std::fmt::Display for WordCounter {
     }
 }
 
-fn to_words(line: String) -> Vec<String> {
+fn to_words(line: &str) -> Vec<String> {
     line
     .split_whitespace()
     .map(|word| word.to_owned())

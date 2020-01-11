@@ -1,4 +1,5 @@
 mod word_counter;
+mod spell_checker;
 
 pub fn clean_line(input: &str) -> String {
     input
