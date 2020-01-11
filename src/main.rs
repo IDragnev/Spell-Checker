@@ -3,6 +3,7 @@ mod spell_checker;
 
 pub fn clean_line(input: &str) -> String {
     input
+    .trim()
     .chars()
     .filter(|&a| is_valid_symbol(a))
     .collect()
@@ -28,9 +29,9 @@ mod tests {
         assert_eq!(line, clean_line(line));
     }
     #[test]
-    fn clean_line_leaves_leading_and_trailing_spaces() {
+    fn clean_line_removes_leading_and_trailing_spaces() {
         let line = " abc \n";        
-        assert_eq!(line, clean_line(line));
+        assert_eq!(clean_line(line), "abc");
     }
     #[test]
     fn clean_line_with_characters_to_remove() {
