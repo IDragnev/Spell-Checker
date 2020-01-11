@@ -34,26 +34,19 @@ impl SpellChecker {
     }
 
     pub fn candidates(&self, word: &str) -> Vec<String> {
-        let edits = [word].iter().map(|s| s.to_string()).collect();
-        let result = self.known(&edits);
-        if  !result.is_empty() {
-            return result.iter().map(|&s| s.to_owned()).collect();
-        }
+        let known_words = |edits| -> Option<Vec<String>> {
+            let words = self.known(&edits);
+            if !words.is_empty() {
+                Some(words.iter().map(|&s| s.to_owned()).collect())
+            }
+            else { None }
+        };
         
-        let edits1 = self.edits1(word);
-        let result = self.known(&edits1);
-        if !result.is_empty() {
-            return result.iter().map(|&s| s.to_owned()).collect();
-        }
-
-        let edits2 = self.edits2(word);
-        let result = self.known(&edits2);
-        if !result.is_empty() {
-            result.iter().map(|&s| s.to_owned()).collect()
-        }
-        else {
-            vec![word.to_owned()]
-        }
+        let edits = [word].iter().map(|s| s.to_string()).collect();
+        known_words(edits)
+        .or_else(|| known_words(self.edits1(word)))
+        .or_else(|| known_words(self.edits2(word)))
+        .unwrap_or_else(|| vec![word.to_owned()])
     }
     
     pub fn known<'a>(&self, words: &'a HashSet<String>) -> Vec<&'a String> {
