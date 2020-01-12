@@ -59,7 +59,7 @@ impl SpellChecker {
     pub fn edits1(&self, word: &str) -> HashSet<String> {
         use std::iter::FromIterator;
         let splits = 
-            (0..word.len())
+            (0..word.len() + 1)
             .map(|i| (&word[..i], &word[i..]))
             .collect::<Vec<(&str, &str)>>();
         let deletes = Self::single_deletes(&splits);
@@ -122,5 +122,86 @@ impl SpellChecker {
         .into_iter()
         .flat_map(|e1| self.edits1(&e1))
         .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn edits1_with_empty_alphabet() {
+        let checker = SpellChecker::new("", "");
+        let word = "ab";
+        let expected_words = as_set(&["a", "b", "ba"]);
+        
+        assert_eq!(checker.edits1(word), expected_words);
+    }
+    
+    #[test]
+    fn edits1_with_nonempty_alphabet() {
+        let checker = SpellChecker::new("", "c");
+        let word = "ab";
+        let expected_words = as_set(&["cb", "b", "acb", "abc", "ba", "a", "cab", "ac"]);
+
+        assert_eq!(checker.edits1(word), expected_words); 
+    }
+
+    #[test]
+    fn edits2_with_empty_alphabet() {
+        let checker = SpellChecker::new("", "");
+        let word = "ab";
+        let expected_words = as_set(&["", "ab", "a", "b"]);
+
+        assert_eq!(checker.edits2(word), expected_words);
+    }
+
+    #[test]
+    fn edits2_with_nonempty_alphabet() {
+        let checker = SpellChecker::new("", "c");
+        let word = "ab";
+        let expected_words = as_set(&[
+            "", "a", "cb", "cac", "bc", "cba", "acbc", "cab", "ac",
+            "acc", "abcc", "ab", "c", "accb", "cbc", "ca", "cc", "cacb",
+            "ccb", "acb", "abc", "cabc", "bca", "ccab", "b", "bac",
+        ]);
+        
+        assert_eq!(checker.edits2(word), expected_words);
+    }
+
+    #[test]
+    fn known_words_with_empty_corpus() {
+        let checker = SpellChecker::new("", ALPHABET_EN);
+        let words = as_set(&["a", "b"]);
+
+        let known_words = checker.known(&words);
+        
+        assert!(known_words.is_empty());
+    }
+
+    #[test]
+    fn known_words_with_nonempty_corpus_and_words_which_are_not_in_the_corpus() {
+        let checker = SpellChecker::new("one two three", ALPHABET_EN);
+        let words = as_set(&["a", "b"]);
+
+        let known_words = checker.known(&words);
+        
+        assert!(known_words.is_empty());
+    }
+    
+    #[test]
+    fn known_words_with_nonempty_corpus_and_words_which_are_in_the_corpus() {
+        let checker = SpellChecker::new("one two three", ALPHABET_EN);
+        let words = as_set(&["one", "a", "b"]);
+        let expected_word = "one".to_owned();
+
+        let known_words = checker.known(&words);
+        
+        assert_eq!(known_words.len(), 1);
+        assert!(known_words.contains(&&expected_word));
+    }
+
+    fn as_set(words: &[&str]) -> HashSet<String> {
+        words.iter().map(|&s| s.to_owned()).collect()
     }
 }
