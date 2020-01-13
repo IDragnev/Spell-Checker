@@ -34,10 +34,14 @@ impl SpellChecker {
     }
 
     pub fn candidates(&self, word: &str) -> Vec<String> {
-        let known_words = |edits| -> Option<Vec<String>> {
+        let known_words = |edits| {
             let words = self.known(&edits);
             if !words.is_empty() {
-                Some(words.iter().map(|&s| s.to_owned()).collect())
+                let mut vec = words.iter()
+                    .map(|&s| s.to_owned())
+                    .collect::<Vec<String>>();
+                vec.sort_unstable_by(|a, b| a.cmp(b));
+                Some(vec)
             }
             else { None }
         };
@@ -238,5 +242,71 @@ mod tests {
 
     fn as_set(words: &[&str]) -> HashSet<String> {
         words.iter().map(|&s| s.to_owned()).collect()
+    }
+
+    #[test]
+    fn candidates_with_very_different_word_from_ones_on_corpus() {
+        let checker = SpellChecker::new("ice isle spie crie dice mice mic", ALPHABET_EN);
+        let word = "hamlet".to_owned();
+
+        let candidates = checker.candidates(&word);
+
+        assert_eq!(candidates.len(), 1);
+        assert!(candidates.contains(&word));
+    }
+    
+    #[test]
+    fn candidates_with_one_letter_difference() {
+        let checker = SpellChecker::new("ice isle spie crie dice mice mic", ALPHABET_EN);
+        let word = "ide".to_owned();
+        let expected = "ice".to_owned();
+
+        let candidates = checker.candidates(&word);
+
+        assert_eq!(candidates.len(), 1);
+        assert!(candidates.contains(&expected));
+    }
+    
+    #[test]
+    fn candidates_with_two_letters_difference() {
+        let checker = SpellChecker::new("ice isle spie crie dice mice mic", ALPHABET_EN);
+        let word = "idde".to_owned();
+        let expected = ["dice", "ice", "isle"];
+
+        let candidates = checker.candidates(&word);
+
+        assert_eq!(candidates, expected);
+    }
+
+    #[test]
+    fn correction_with_very_different_word_from_ones_on_corpus() {
+        let checker = SpellChecker::new("ice isle spie crie dice mice mic", ALPHABET_EN);
+        let word = "hamlet".to_owned();
+
+        let correction = checker.correction(&word);
+
+        assert_eq!(correction, word);
+    }
+
+    #[test]
+    fn correction_with_one_letter_difference() {
+        let checker = SpellChecker::new("ice isle spie crie dice mice mic", ALPHABET_EN);
+        let word = "ide".to_owned();
+        let expected = "ice".to_owned();
+
+        let correction = checker.correction(&word);
+
+        assert_eq!(correction, expected);
+    }
+
+    #[test]
+    fn correction_with_two_letters_difference() {
+        let checker = SpellChecker::new("ice isle spie crie dice mice mic", ALPHABET_EN);
+        let word = "idde";
+        let expected = "isle";
+
+        let correction = checker.correction(&word);
+
+        assert_eq!(correction, expected);
     }
 }
