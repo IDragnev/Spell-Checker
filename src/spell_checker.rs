@@ -58,9 +58,10 @@ impl SpellChecker {
 
     pub fn edits1(&self, word: &str) -> HashSet<String> {
         use std::iter::FromIterator;
-        let splits = 
-            (0..word.len() + 1)
-            .map(|i| (&word[..i], &word[i..]))
+        let splits = word
+            .char_indices()
+            .map(|(i, _)| (&word[..i], &word[i..]))
+            .chain([(word, "")].iter().copied())
             .collect::<Vec<(&str, &str)>>();
         let deletes = Self::single_deletes(&splits);
         let inserts = self.single_inserts(&splits);
@@ -79,19 +80,22 @@ impl SpellChecker {
         splits
         .iter()
         .filter(|(_, right)| !right.is_empty())
-        .map(|(left, right)| format!("{}{}", left, &right[1..]))
+        .map(|(left, right)| {
+            format!("{}{}", left, drop_leading_chars(1, right))
+        })
         .collect()
     }
 
     fn adjacent_transposes(splits: &[(&str, &str)]) -> Vec<String> {
         splits
         .iter()
-        .filter(|(_, right)| right.len() > 1)
-        .map(|(left, right)| { 
+        .filter(|(_, right)| right.chars().count() > 1)
+        .map(|(left, right)| {
+            let r = drop_leading_chars(2, right);
             let right_nth = |i| right.chars().nth(i).unwrap();
-            format!("{}{}{}{}", left, right_nth(1), right_nth(0), &right[2..])
+            format!("{}{}{}{}", left, right_nth(1), right_nth(0), r)
         })
-        .collect()   
+        .collect()      
     }
 
     fn single_replaces(&self, splits: &[(&str, &str)]) -> Vec<String> {
@@ -100,7 +104,7 @@ impl SpellChecker {
         .filter(|(_, right)| !right.is_empty())
         .flat_map(|(left, right)| {
             self.alphabet.chars().map(move |c| {
-                format!("{}{}{}", left, c, &right[1..])
+                format!("{}{}{}", left, c, drop_leading_chars(1, right))
             })
         })
         .collect()
@@ -125,6 +129,15 @@ impl SpellChecker {
     }
 }
 
+fn drop_leading_chars(n: usize, s: &str) -> &str {
+    s
+    .char_indices()
+    .skip(n)
+    .next()
+    .map(|(i, _)| &s[i..])
+    .unwrap_or("")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -139,10 +152,19 @@ mod tests {
     }
     
     #[test]
-    fn edits1_with_nonempty_alphabet() {
+    fn edits1_with_nonempty_en_alphabet() {
         let checker = SpellChecker::new("", "c");
         let word = "ab";
         let expected_words = as_set(&["cb", "b", "acb", "abc", "ba", "a", "cab", "ac"]);
+
+        assert_eq!(checker.edits1(word), expected_words); 
+    }
+    
+    #[test]
+    fn edits1_with_nonempty_bg_alphabet() {
+        let checker = SpellChecker::new("", "з");
+        let word = "ей";
+        let expected_words = as_set(&["ез", "езй", "й", "зй", "ейз", "зей", "е", "йе"]);
 
         assert_eq!(checker.edits1(word), expected_words); 
     }
@@ -157,13 +179,26 @@ mod tests {
     }
 
     #[test]
-    fn edits2_with_nonempty_alphabet() {
+    fn edits2_with_nonempty_en_alphabet() {
         let checker = SpellChecker::new("", "c");
         let word = "ab";
         let expected_words = as_set(&[
             "", "a", "cb", "cac", "bc", "cba", "acbc", "cab", "ac",
             "acc", "abcc", "ab", "c", "accb", "cbc", "ca", "cc", "cacb",
             "ccb", "acb", "abc", "cabc", "bca", "ccab", "b", "bac",
+        ]);
+        
+        assert_eq!(checker.edits2(word), expected_words);
+    }
+
+    #[test]
+    fn edits2_with_nonempty_bg_alphabet() {
+        let checker = SpellChecker::new("", "з");
+        let word = "ей";
+        let expected_words = as_set(&[
+            "", "зез", "езйз", "ейз", "з", "зей", "зз", "зйе", "ез",
+            "езй", "йез", "зейз", "ейзз", "еззй", "ззй", "зй", "зе",
+            "йзе", "зезй", "е", "ззей", "ей", "йз", "езз", "й", "зйз",
         ]);
         
         assert_eq!(checker.edits2(word), expected_words);
@@ -181,8 +216,8 @@ mod tests {
 
     #[test]
     fn known_words_with_nonempty_corpus_and_words_which_are_not_in_the_corpus() {
-        let checker = SpellChecker::new("one two three", ALPHABET_EN);
-        let words = as_set(&["a", "b"]);
+        let checker = SpellChecker::new("one two three изненада", ALPHABET_EN);
+        let words = as_set(&["a", "й"]);
 
         let known_words = checker.known(&words);
         
@@ -191,9 +226,9 @@ mod tests {
     
     #[test]
     fn known_words_with_nonempty_corpus_and_words_which_are_in_the_corpus() {
-        let checker = SpellChecker::new("one two three", ALPHABET_EN);
-        let words = as_set(&["one", "a", "b"]);
-        let expected_word = "one".to_owned();
+        let checker = SpellChecker::new("one two three изненада", ALPHABET_EN);
+        let words = as_set(&["a", "b", "изненада"]);
+        let expected_word = "изненада".to_owned();
 
         let known_words = checker.known(&words);
         
